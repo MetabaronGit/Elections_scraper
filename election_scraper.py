@@ -56,14 +56,27 @@ def get_municipality_election_results(url: str) -> dict:
     result["envelopes_issued"] = envelopes_issued.replace("\xa0", "")
 
     # platne hlasy celkem
-    valid_votes = soup.find("td", class_="cislo", headers="sa6").text.strip()
-    result["valid_votes"] = valid_votes.replace("\xa0", "")
+    total_valid_votes = soup.find("td", class_="cislo", headers="sa6").text.strip()
+    result["total_valid_votes"] = total_valid_votes.replace("\xa0", "")
 
     # seznam kandidátů
-    voters = soup.find_all("td", class_="cislo",  headers="t1sa1 t1sb1")
+    voters = soup.find_all("td", class_="cislo", headers="t1sa1 t1sb1")
     voters += soup.find_all("td", class_="cislo", headers="t2sa1 t2sb1")
     registered_voters_list = [voter.text.strip() for voter in voters]
-    result["registered_voters_list"] = registered_voters_list
+
+    # platné hlasy jednotlivých kandidátů
+    valid_votes = soup.find_all("td", class_="cislo", headers="t1sa2 t1sb3")
+    valid_votes += soup.find_all("td", class_="cislo", headers="t2sa2 t2sb3")
+    valid_votes_list = [votes.text.strip().replace("\xa0", "") for votes in valid_votes]
+
+    result["registered_voters"] = dict(zip(registered_voters_list, valid_votes_list))
+
+    print(result)
+    exit()
+
+    return result
+
+
     return result
 
 
