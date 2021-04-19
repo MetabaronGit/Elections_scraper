@@ -37,31 +37,36 @@ def get_all_valid_candidates(url: str) -> dict:
     return result
 
 
-def get_municipality_election_results(municipality_number: str, url: str) -> dict:
+def get_municipality_election_results(url: str) -> dict:
     """Vrátí slovník s výsledkovými údaji obce ze zadané URL"""
     result = dict()
-    print(municipality_number)
     soup = get_soup(url)
 
     # nazev obce
     data = soup.find_all("h3")
     municipality_name = data[2].text[6:].strip()
-    print(municipality_name)
+    result["municipality_name"] = municipality_name
 
     # volici v seznamu
-    registered_voters = soup.find("td", class_="cislo", headers="sa2").text
-    print(registered_voters)
+    registered_voters = soup.find("td", class_="cislo", headers="sa2").text.strip()
+    result["registered_voters"] = registered_voters.replace("\xa0", "")
 
     # vydane obalky
-    envelopes_issued = soup.find("td", class_="cislo", headers="sa3").text
-    print(envelopes_issued)
+    envelopes_issued = soup.find("td", class_="cislo", headers="sa3").text.strip()
+    result["envelopes_issued"] = envelopes_issued.replace("\xa0", "")
 
     # platne hlasy celkem
-    valid_votes = soup.find("td", class_="cislo", headers="sa6").text
-    print(valid_votes)
+    valid_votes = soup.find("td", class_="cislo", headers="sa6").text.strip()
+    result["valid_votes"] = valid_votes.replace("\xa0", "")
+
+    # seznam kandidátů
+    voters = soup.find_all("td", class_="cislo",  headers="t1sa1 t1sb1")
+    voters += soup.find_all("td", class_="cislo", headers="t2sa1 t2sb1")
+    registered_voters_list = [voter.text.strip() for voter in voters]
+    result["registered_voters_list"] = registered_voters_list
+    return result
 
 
-    exit()
 
 def main():
     url = "https://volby.cz/pls/ps2017nss/ps32?xjazyk=CZ&xkraj=12&xnumnuts=7103"
@@ -80,15 +85,17 @@ def main():
     all_valid_candidates = get_all_valid_candidates(URL_ROOT + URL_VALID_CANDIDATES)
     print(all_valid_candidates)
 
-    # seznam obcí v okrese z URL key=č.obce, value=odkaz na výsledky
+
+    final_result = dict()
     soup = get_soup(url)
-    municipalities = get_municipalities(soup)  # seznam obcí ve vybraném okrese
 
-    # for key in locations:
-    #     get_municipality_election_results(key, municipalities.get[key])
+    # seznam obcí ve vybraném okrese ze vstupní URL key=č.obce, value=odkaz na výsledky
+    municipalities = get_municipalities(soup)
+    for municipality_nr in municipalities:
+        final_result[municipality_nr] = get_municipality_election_results(URL_ROOT +
+                                                                          municipalities.get(municipality_nr))
+    print(final_result)
 
-    get_municipality_election_results("506761", URL_ROOT + municipalities.get("506761"))
-    # print(location)
 
 if __name__ == "__main__":
     main()
