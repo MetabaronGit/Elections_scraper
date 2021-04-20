@@ -2,6 +2,7 @@ import sys
 import requests
 from bs4 import BeautifulSoup as BS
 import csv
+import time
 
 URL_ROOT = "https://volby.cz/pls/ps2017nss/"
 URL_VALID_CANDIDATES = "ps11?xjazyk=CZ&xv=1&xt=2"
@@ -61,32 +62,50 @@ def get_municipality_election_results(url: str) -> dict:
     result["total_valid_votes"] = total_valid_votes.replace("\xa0", "")
 
     # seznam kandidátů
-    voters = soup.find_all("td", class_="cislo", headers="t1sa1 t1sb1")
-    voters += soup.find_all("td", class_="cislo", headers="t2sa1 t2sb1")
-    registered_voters_list = [voter.text.strip() for voter in voters]
+    candidates = soup.find_all("td", class_="cislo", headers="t1sa1 t1sb1")
+    candidates += soup.find_all("td", class_="cislo", headers="t2sa1 t2sb1")
+    valid_candidates_list = [candidate.text.strip() for candidate in candidates]
 
     # platné hlasy jednotlivých kandidátů
     valid_votes = soup.find_all("td", class_="cislo", headers="t1sa2 t1sb3")
     valid_votes += soup.find_all("td", class_="cislo", headers="t2sa2 t2sb3")
     valid_votes_list = [votes.text.strip().replace("\xa0", "") for votes in valid_votes]
 
-    result["registered_voters"] = dict(zip(registered_voters_list, valid_votes_list))
-
-    print(result)
-    exit()
+    result["valid_candidates"] = dict(zip(valid_candidates_list, valid_votes_list))
 
     return result
 
 
-def create_csv(file_name: str, header: list, final_result: dict) -> None:
+def create_csv(file_name: str, header: list, data: list) -> None:
     """Zapíše údaje do nového souboru csv"""
     with open(file_name, "w") as f:
         f_writer = csv.writer(f)
         f_writer.writerow(header)
+        f_writer.writerows(data)
+    print("csv vytvořen")
 
 
-def create_csv_header():
-    pass
+def create_csv_content(final_result: dict, valid_candidates: int) -> list:
+    """Zkonvertuje data do formátu pro zápis do csv souboru"""
+    result = []
+    for municipality_nr in final_result:
+        line = []
+        line.append(municipality_nr)
+        line.append(final_result.get(municipality_nr)["municipality_name"])
+        line.append(final_result.get(municipality_nr)["registered_voters"])
+        line.append(final_result.get(municipality_nr)["envelopes_issued"])
+        line.append(final_result.get(municipality_nr)["total_valid_votes"])
+
+        # zapíše počty hlasů jednotlivých kandidátů, pokud strana nekandidovala, zapíše se -1
+        for candidate in range(1, valid_candidates + 1):
+            try:
+                line.append(final_result.get(municipality_nr)["valid_candidates"][str(candidate)])
+            except:
+                line.append("-1")
+
+        result.append(line)
+
+    return result
 
 
 def main():
@@ -116,27 +135,21 @@ def main():
         csv_header.append(all_valid_candidates.get(str(valid_candidate_nr)))
     # print(csv_header)
 
-    final_result = {'municipality_name': 'Alojzov',
-                    'registered_voters': {'1': '29', '2': '0', '3': '0', '4': '9', '6': '0', '7': '5', '8': '17',
-                                          '9': '4', '10': '1', '12': '1', '13': '0', '14': '0', '15': '18', '19': '0',
-                                          '20': '5', '21': '32', '22': '0', '23': '0', '24': '6', '25': '0', '26': '0',
-                                          '27': '1', '28': '1', '29': '15', '30': '0'},
-                    'envelopes_issued': '145',
-                    'total_valid_votes': '144'}
-
-    create_csv(file_name, csv_header, final_result)
-    exit()
-
     final_result = dict()
     soup = get_soup(url)
 
     # seznam obcí ve vybraném okrese ze vstupní URL key=č.obce, value=odkaz na výsledky
-    # municipalities = get_municipalities(soup)
-    # for municipality_nr in municipalities:
-    #     final_result[municipality_nr] = get_municipality_election_results(URL_ROOT +
-    #                                                                       municipalities.get(municipality_nr))
+    municipalities = get_municipalities(soup)
+    for municipality_nr in municipalities:
+        final_result[municipality_nr] = get_municipality_election_results(URL_ROOT +
+                                                                          municipalities.get(municipality_nr))
+        time.sleep(0.2)
+        break
 
-    create_csv(file_name, csv_header, final_result)
+    print("vytvářím csv")
+    print(final_result)
+    data = create_csv_content(final_result, len(all_valid_candidates))
+    create_csv(file_name, csv_header, data)
 
 
 if __name__ == "__main__":
