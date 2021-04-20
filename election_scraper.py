@@ -20,8 +20,12 @@ def get_municipalities(soup: BS) -> dict:
 
     table = soup.find_all("td", class_="cislo")
     for line in table:
-        municipality_number = line.text # cislo obce
-        url_municipality_result = line.find("a").attrs["href"]  # odkay na vysledky v obci
+        # cislo obce
+        municipality_number = line.text
+
+        # odkaz na vysledky v obci
+        url_municipality_result = line.find("a").attrs["href"]
+
         result[str(municipality_number)] = str(url_municipality_result)
 
     return result
@@ -32,10 +36,12 @@ def get_all_valid_candidates(url: str) -> dict:
     result = dict()
     soup = get_soup(url)
     table = soup.find_all("th", class_="leg_sloupec")
+
     for line in table:
         candidate = line.text.split(" ", 1)
         if candidate[0].isdecimal():
             result[candidate[0]] = candidate[1]
+
     return result
 
 
@@ -77,12 +83,17 @@ def get_municipality_election_results(url: str) -> dict:
 
 
 def create_csv(file_name: str, header: list, data: list) -> None:
-    """Zapíše údaje do nového souboru csv"""
-    with open(file_name, "w") as f:
-        f_writer = csv.writer(f)
-        f_writer.writerow(header)
-        f_writer.writerows(data)
-    print("csv vytvořen")
+    """Zapíše získané údaje do souboru csv"""
+    try:
+        with open(file_name, "w", newline="", encoding='utf-8') as f:
+            f_writer = csv.writer(f)
+            f_writer.writerow(header)
+            f_writer.writerows(data)
+        print(f"Soubor {file_name} byl vytvořen.")
+        time.sleep(1)
+    except Exception:
+        print(f"Chyba při vytváření souboru {file_name}.")
+        exit()
 
 
 def create_csv_content(final_result: dict, valid_candidates: int) -> list:
@@ -109,23 +120,18 @@ def create_csv_content(final_result: dict, valid_candidates: int) -> list:
 
 
 def main():
-    url = "https://volby.cz/pls/ps2017nss/ps32?xjazyk=CZ&xkraj=12&xnumnuts=7103"
-    file_name = "vysledky_prostejov.csv"
-
     try:
         url = sys.argv[1]
         file_name = sys.argv[2]
-        print(url)
-        print(file_name)
+        soup = get_soup(url)
     except Exception:
         print("Špatně zadané argumenty.")
-        # exit()
+        exit()
 
     # seznam všech platných kandidátů key=číslo, value=jméno
     all_valid_candidates = get_all_valid_candidates(URL_ROOT + URL_VALID_CANDIDATES)
-    # print(all_valid_candidates)
 
-    # vytvoření hlavičky pro csv soubor
+    # zjistíme počet zaregistrovaných kandidátů a vytvoření hlavičky pro csv soubor
     csv_header = ["municipality_number",
                   "municipality_name",
                   "registered_voters",
@@ -133,52 +139,24 @@ def main():
                   "total_valid_votes"]
     for valid_candidate_nr in range(1, len(all_valid_candidates) + 1):
         csv_header.append(all_valid_candidates.get(str(valid_candidate_nr)))
-    # print(csv_header)
-
-    final_result = dict()
-    soup = get_soup(url)
 
     # seznam obcí ve vybraném okrese ze vstupní URL key=č.obce, value=odkaz na výsledky
+    final_result = dict()
     municipalities = get_municipalities(soup)
+    print(f"Stahuji data z vybraného URL {url} ...")
     for municipality_nr in municipalities:
         final_result[municipality_nr] = get_municipality_election_results(URL_ROOT +
                                                                           municipalities.get(municipality_nr))
+        # zpomalení, abychom nezahltili server a nedostali ban
         time.sleep(0.2)
-        break
 
-    print("vytvářím csv")
-    print(final_result)
+    print(f"Ukládám výsledky do souboru {file_name} ...")
+    time.sleep(1)
     data = create_csv_content(final_result, len(all_valid_candidates))
     create_csv(file_name, csv_header, data)
+    time.sleep(1)
+    print("Program election_scraper byl ukončen.")
 
 
 if __name__ == "__main__":
     main()
-
-# úvodní stránka
-# https://volby.cz/pls/ps2017nss/ps3?xjazyk=CZ
-# výběr okresů z tabulek dle krajů
-
-# 1. parametr: odkaz vybraného okresu (Hradec Králové)
-# https://volby.cz/pls/ps2017nss/ps32?xjazyk=CZ&xkraj=8&xnumnuts=5201
-# 2.parametr: jméno csv souboru
-# csv soubor
-# kód obce = č.obce, pod ním je odkaz na tabulku s výsledky (Babice)
-# https://volby.cz/pls/ps2017nss/ps311?xjazyk=CZ&xkraj=8&xobec=569828&xvyber=5201
-# https://volby.cz/pls/ps2017nss/ps311?xjazyk=CZ&xkraj=8&xobec={cislo_obce}&xvyber=5201
-# název obce =obec
-
-# z odkazu č. obce
-# voliči v seznamu = č.
-# vydané obálky = č.
-# platné hlasy = č.
-# kandidující strany = list názvů
-
-# výstup:
-# dictionary {kod_obce:{nazev_obce: str
-#                       volici_v_seznamu: int
-#                       vydane_obalky: int
-#                       platne_hlasy: int
-#                       kandidujici_strany: {cislo_strany: platne_hlasy int, ...}
-#                       },
-#              ...}
