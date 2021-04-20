@@ -17,12 +17,10 @@ def get_soup(url: str) -> BS:
 def get_municipalities(soup: BS) -> dict:
     """Vrátí slovník se seznamem všech čísel obcí v okrese včetně odkazů na jejich volební výsledky."""
     result = dict()
-
     table = soup.find_all("td", class_="cislo")
     for line in table:
         # cislo obce
         municipality_number = line.text
-
         # odkaz na vysledky v obci
         url_municipality_result = line.find("a").attrs["href"]
 
@@ -151,10 +149,10 @@ def main():
         time.sleep(0.2)
 
     print(f"Ukládám výsledky do souboru {file_name} ...")
-    time.sleep(1)
+    time.sleep(1.5)
     data = create_csv_content(final_result, len(all_valid_candidates))
     create_csv(file_name, csv_header, data)
-    time.sleep(1)
+    time.sleep(1.5)
     print("Program election_scraper byl ukončen.")
 
 
