@@ -28,7 +28,7 @@ Průběh stahování:
 ```
 Stahuji data z vybraného URL https://volby.cz/pls/ps2017nss/ps32?xjazyk=CZ&xkraj=8&xnumnuts=5201 ...
 Ukládám výsledky do souboru vysledky_prostejov.csv ...
-Soubor vysledky_prostejov.csv byl vytvořen.
+Soubor vysledky_hradec.csv byl vytvořen.
 Program election_scraper byl ukončen.
 ```
 Ukázka výstupu z finálního souboru csv:
